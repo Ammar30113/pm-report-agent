@@ -1,0 +1,4 @@
+id,vendor,status,location,completion_date
+R070001,VendorA,completed,Toronto,2025-10-01
+R070002,VendorB,overdue,Ottawa,2025-10-15
+R070003,VendorC,pending,Montreal,
