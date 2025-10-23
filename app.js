@@ -1,46 +1,42 @@
-async function fetchCSV() {
-  const response = await fetch('data/pm_data.csv');
-  const text = await response.text();
-  return parseCSV(text);
+const fs = require('fs');
+const path = require('path');
+const csv = require('csv-parser');
+
+const csvFilePath = path.join(__dirname, 'data', 'pm_data.csv');
+
+// Helper function to check if a date is in the past
+function isDateInPast(dateString) {
+  const today = new Date();
+  const comparisonDate = new Date(dateString);
+  return comparisonDate < today;
 }
 
-function parseCSV(data) {
-  const rows = data.trim().split('\n');
-  const headers = rows[0].split(',');
-  const result = rows.slice(1).map(row => {
-    const cells = row.split(',');
-    const obj = {};
-    headers.forEach((h, i) => { obj[h.trim()] = cells[i] ? cells[i].trim() : ''; });
-    return obj;
+// Initialize counters
+let total = 0;
+let completed = 0;
+let pending = 0;
+let overdue = 0;
+
+// Read and parse the CSV file
+fs.createReadStream(csvFilePath)
+  .pipe(csv())
+  .on('data', (row) => {
+    total++;
+    const status = row.status.toLowerCase();
+    const completionDate = row.completion_date;
+
+    if (status === 'completed') {
+      completed++;
+    } else if (status === 'pending') {
+      pending++;
+    } else if (isDateInPast(completionDate)) {
+      overdue++;
+    }
+  })
+  .on('end', () => {
+    // Log the summary
+    console.log(`Total: ${total}, Completed: ${completed}, Pending: ${pending}, Overdue: ${overdue}`);
+  })
+  .on('error', (error) => {
+    console.error('Error reading the CSV file:', error);
   });
-  return result;
-}
-
-function analyzePM(records) {
-  const total = records.length;
-  const completed = records.filter(r => r.status === 'completed').length;
-  const overdue = records.filter(r => r.status === 'overdue').length;
-  const pending = records.filter(r => r.status === 'pending').length;
-  return { total, completed, overdue, pending };
-}
-
-function displayReport(summary) {
-  const container = document.getElementById('report-container');
-  container.innerHTML = `
-    <p>Total PMs: ${summary.total}</p>
-    <p>Completed: ${summary.completed}</p>
-    <p>Overdue: ${summary.overdue}</p>
-    <p>Pending: ${summary.pending}</p>
-  `;
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-  const button = document.createElement('button');
-  button.textContent = 'Generate Report';
-  button.addEventListener('click', async () => {
-    const records = await fetchCSV();
-    const summary = analyzePM(records);
-    displayReport(summary);
-  });
-  document.getElementById('report-container').appendChild(button);
-});
